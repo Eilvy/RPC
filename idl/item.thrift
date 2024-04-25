@@ -20,10 +20,6 @@ struct GetItemResp {
     2:required string shortURL
     255: base.BaseResp baseResp
 }
-#struct RedisCli{
-#    1:
-#}
-
 service ItemService{
     GetItemResp GetItem(1: GetItemReq req)
 }

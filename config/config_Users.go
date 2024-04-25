@@ -2,18 +2,18 @@ package config
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"go_code/RPC/utils"
+	"gorm.io/gorm"
 	"time"
 )
 
 func CreateUser(c *gin.Context) {
-	var user utils.Users
-	var test utils.Users
+	var user utils.User
+	var test utils.User
 
 	err := c.ShouldBind(&user)
 	if err != nil {
@@ -25,49 +25,85 @@ func CreateUser(c *gin.Context) {
 		c.JSON(200, gin.H{"msg": "请必须设置密码"})
 		return
 	}
-	err = utils.DB.QueryRow("select username from users where username=?", user.Username).Scan(&test.Username)
-	if err == nil {
-		//出现查重数据
-		c.JSON(200, gin.H{"msg": "用户名重复，请重新输入"})
-		utils.Failed(c)
-		return
-	} else if !errors.Is(err, sql.ErrNoRows) {
-		//查重过程出错，程序出错
-		c.JSON(200, gin.H{"msg": "database error", "err": err.Error()})
-		utils.Failed(c)
+	//err = utils.DB.QueryRow("select username from users where username=?", user.Username).Scan(&test.Username)
+	result := utils.DB.Where("username=?", user.Username).First(&test)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			c.JSON(200, gin.H{"msg": "数据库中查无此人，请重新输入"})
+			return
+		} else {
+			fmt.Println("查询出错，err:", result.Error.Error())
+			return
+		}
+	}
+	//if err == nil {
+	//出现查重数据
+	//	c.JSON(200, gin.H{"msg": "用户名重复，请重新输入"})
+	//	utils.Failed(c)
+	//	return
+	//} else if !errors.Is(err, sql.ErrNoRows) {
+	//查重过程出错，程序出错
+	//	c.JSON(200, gin.H{"msg": "database error", "err": err.Error()})
+	//	utils.Failed(c)
+	//	return
+	//}
+	//_, err = utils.DB.Exec("insert into users (username,password,LongURL,ShortURL,Prise) values (?,?,?,?,?)", user.Username, user.Password, user.LongURL, user.ShortURL, user.Prise)
+	result = utils.DB.Create(&user)
+	if result.Error != nil {
+		c.JSON(200, gin.H{"mag": "传入数据库数据失败", "err": result.Error.Error()})
 		return
 	}
-	_, err = utils.DB.Exec("insert into users (username,password,LongURL,ShortURL,Prise) values (?,?,?,?,?)", user.Username, user.Password, user.LongURL, user.ShortURL, user.Prise)
-	if err != nil {
-		utils.Failed(c)
-		utils.Logger.Println("写入用户数据失败:", err.Error())
-		return
-	}
+	//if err != nil {
+	//	utils.Failed(c)
+	//	utils.Logger.Println("写入用户数据失败:", err.Error())
+	//	return
+	//}
 	c.JSON(200, gin.H{"msg": "success"})
 }
 
 func GetToken(c *gin.Context) {
-	var Password string
-	var test string
+	//var Password string
+	//var test string
 	username := c.Query("username")
 	password := c.Query("password")
 	//从数据库中查找此人是否存在
-	err := utils.DB.QueryRow("select username from users where (username=?) and password=?", username, password).Scan(&test)
-	if err != nil {
-		fmt.Printf("error:%s\n", err.Error())
-		c.JSON(200, gin.H{"msg": "数据库中查无此人，请重新输入"})
-		utils.Failed(c)
-		return
+	//err := utils.DB.QueryRow("select username from users where (username=?) and password=?", username, password).Scan(&test)
+	result := utils.DB.Where("username=?", username).First(&utils.Test)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			c.JSON(200, gin.H{"msg": "数据库中查无此人，请重新输入"})
+			return
+		} else {
+			fmt.Println("查询出错，err:", result.Error.Error())
+			return
+		}
 	}
 
-	err = utils.DB.QueryRow("select password from users where username=?", test).Scan(&Password)
-	if err != nil {
-		utils.Failed(c)
-		utils.Logger.Println("密码读取错误:", err.Error())
-		c.JSON(200, gin.H{"data": "密码数据读取错误", "err": err.Error()})
-		return
+	//if err != nil {
+	//	fmt.Printf("error:%s\n", err.Error())
+	//	c.JSON(200, gin.H{"msg": "数据库中查无此人，请重新输入"})
+	//	utils.Failed(c)
+	//	return
+	//}
+
+	//err := utils.DB.QueryRow("select password from users where username=?", test).Scan(&Password)
+	result = utils.DB.Where("username=?", username).First(&utils.Test)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			c.JSON(200, gin.H{"msg": "数据库中查无此人，请重新输入"})
+			return
+		} else {
+			fmt.Println("查询出错，err:", result.Error.Error())
+			return
+		}
 	}
-	if Password != password {
+	//if err != nil {
+	//	utils.Failed(c)
+	//	utils.Logger.Println("密码读取错误:", err.Error())
+	//	c.JSON(200, gin.H{"data": "密码数据读取错误", "err": err.Error()})
+	//	return
+	//}
+	if utils.Test.Password != password {
 		utils.Failed(c)
 		c.JSON(200, gin.H{"data": "密码输入错误"})
 		c.Abort()
@@ -105,14 +141,24 @@ func GetToken(c *gin.Context) {
 }
 
 func RefreshToken(c *gin.Context) {
-	var test string
+	//var test string
 	username := c.MustGet("username").(string)
-	err := utils.DB.QueryRow("select username from users where username=?", username).Scan(&test)
-	if err != nil {
-		c.JSON(200, gin.H{"msg": "数据库中查无此人，请重新输入"})
-		utils.Logger.Println("err:", err.Error())
-		utils.Failed(c)
-		return
+	//err := utils.DB.QueryRow("select username from users where username=?", username).Scan(&test)
+	//if err != nil {
+	//	c.JSON(200, gin.H{"msg": "数据库中查无此人，请重新输入"})
+	//	utils.Logger.Println("err:", err.Error())
+	//	utils.Failed(c)
+	//	return
+	//}
+	result := utils.DB.Where("username=?", username).First(&utils.Test)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			c.JSON(200, gin.H{"mas": "查无此人"})
+			return
+		} else {
+			c.JSON(200, gin.H{"msg": "查询数据库失败", "err": result.Error.Error()})
+			return
+		}
 	}
 	claims1 := jwt.MapClaims{
 		"username": username,
@@ -159,15 +205,31 @@ func AddLongURL(c *gin.Context) {
 		}
 	}
 	//存入数据库mysql
-	var test string
-	err = utils.DB.QueryRow("select username from users where username=?", username).Scan(&test)
-	if err != nil {
-		utils.Logger.Println("查询数据库用户名失败,err:", err.Error())
-		return
+	//var test string
+	//err = utils.DB.QueryRow("select username from users where username=?", username).Scan(&test)
+	//if err != nil {
+	//	utils.Logger.Println("查询数据库用户名失败,err:", err.Error())
+	//	return
+	//}
+	result := utils.DB.Where("username=?", username).First(&utils.Test)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			c.JSON(200, gin.H{"mas": "查无此人"})
+			return
+		} else {
+			c.JSON(200, gin.H{"msg": "查询数据库失败", "err": result.Error.Error()})
+			return
+		}
 	}
-	_, err = utils.DB.Exec("update users set LongURL=? where username=?", longURL, username)
-	if err != nil {
-		utils.Logger.Println("写入LongURL失败,err:", err.Error())
+	//_, err = utils.DB.Exec("update users set LongURL=? where username=?", longURL, username)
+	//if err != nil {
+	//	utils.Logger.Println("写入LongURL失败,err:", err.Error())
+	//	return
+	//}
+
+	result = utils.DB.Model(&utils.Test).Where("username=?", username).Update("long_url", longURL)
+	if result.Error != nil {
+		c.JSON(200, gin.H{"msg": "写入数据库失败", "err": result.Error.Error()})
 		return
 	}
 

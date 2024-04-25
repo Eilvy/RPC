@@ -29,7 +29,7 @@ func main() {
 
 	config.RedisConnect()
 	config.MysqlConnect()
-	defer utils.DB.Close()
+	//defer utils.DB.Close()
 
 	utils.Router = gin.Default()
 	utils.Router.POST("/createUser", config.CreateUser)                                         //创建新用户

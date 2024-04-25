@@ -1,21 +1,22 @@
 package utils
 
 import (
-	"database/sql"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"go_code/RPC/kitex_gen/example/shop/item/itemservice"
+	"gorm.io/gorm"
 	"log"
 )
 
 var (
 	Redis  *redis.Client
-	DB     *sql.DB
+	DB     *gorm.DB
 	Key    = []byte("leiyv")
 	Logger *log.Logger
 	Cli    itemservice.Client
 	Router *gin.Engine
+	Test   User
 )
 
 const (
@@ -29,12 +30,20 @@ type MyClaims struct {
 	jwt.StandardClaims
 }
 
-type Users struct {
-	Username string `form:"username"`
-	Password string `form:"password"`
-	Prise    int    `form:"prise"`
-	LongURL  string `form:"longUrl"`
-	ShortURL string `form:"shortUrl"`
+//	type Users struct {
+//		Username string `form:"username"`
+//		Password string `form:"password"`
+//		Prise    int    `form:"prise"`
+//		LongURL  string `form:"longUrl"`
+//		ShortURL string `form:"shortUrl"`
+//	}
+type User struct {
+	Id       uint   `gorm:"primaryKey;autoIncrement"` //自增的主键ID
+	Username string `gorm:"type:char;size:100"`
+	Password string `gorm:"type:char;size:255"`
+	Prise    int    `gorm:"type:int;"`
+	LongURL  string `gorm:"type:char;size:255"`
+	ShortURL string `gorm:"type:char;size:200"`
 }
 
 type Shortage interface {

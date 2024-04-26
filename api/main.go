@@ -33,11 +33,11 @@ func main() {
 
 	utils.Router = gin.Default()
 	utils.Router.POST("/createUser", config.CreateUser)                                         //创建新用户
-	utils.Router.GET("/getToken", config.GetToken)                                              //获取用户Token
+	utils.Router.POST("/getToken", config.GetToken)                                             //获取用户Token
 	utils.Router.GET("/refreshToken", middleware.JWTAuthorMiddleware(), config.RefreshToken)    //刷新用户Token
 	utils.Router.POST("/longURLAdd", middleware.JWTAuthorMiddleware(), config.AddLongURL)       //注册用户写入longURL
 	utils.Router.GET("/createShortURL", middleware.JWTAuthorMiddleware(), utils.CreateShortURL) //获取用户对应longURL的shortURL
-	utils.Router.GET("/:sid", utils.RedirectHandler)                                            //对短链进行重定向
+	utils.Router.GET("/:sid", middleware.JWTAuthorMiddleware(), utils.RedirectHandler)          //对短链进行重定向
 
 	c, err := itemservice.NewClient("example.shop.item.exe", client.WithHostPorts("0.0.0.0:8888"))
 	if err != nil {

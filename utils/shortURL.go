@@ -22,23 +22,38 @@ func CreateShortURL(c *gin.Context) {
 			Logger.Println("查询用户长链失败,err:", err.Error())
 			return
 		}
-		sid := Shorten(Redis, longURL, 100)
-		//if err != nil {
-		//	Logger.Println("长链缩短失败,err:", err.Error())
-		//	return
-		//}
+		sid, err := Shorten(Redis, longURL, 100)
+		if err != nil {
+			Logger.Println("长链缩短失败,err:", err.Error())
+			return
+		}
+		result := DB.Where("username=?", username).First(&Test)
+		if result.Error != nil {
+			Logger.Println("读取数据库错误,err:", result.Error.Error())
+			c.JSON(200, gin.H{"msg": "读取数据库错误", "err": result.Error.Error()})
+			return
+		}
+
+		//将短链sid写入数据库
+		result = DB.Model(&Test).Where("username=?", username).Update("short_url", sid)
+		if result.Error != nil {
+			Logger.Println("写入用户短链错误,err:", result.Error.Error())
+			c.JSON(200, gin.H{"msg": "写入用户短链错误", "err": result.Error.Error()})
+			return
+		}
+
 		c.JSON(200, gin.H{"msg": "success", "shortURL": sid, "longURL": longURL, "user": username})
 		return
 	}
 	c.JSON(200, gin.H{"msg": "用户长链不存在"})
 }
 
-func Shorten(RedisCli *redis.Client, url string, expireTime int64) string {
+func Shorten(RedisCli *redis.Client, url string, expireTime int64) (string, error) {
 	//传入url为长连接，
 	id, err := RedisCli.Incr(context.Background(), RedisKeyUrlID).Result() //从redis获取自增ID
 	if err != nil {
 		Logger.Println("获取自增ID失败,err:", err.Error())
-		return ""
+		return "", err
 	}
 	sid := base62.EncodeInt64(Offset + id) //用base62的方式进行转换//因为base64里包含+，/两个特殊符号对URL不友好不选择//用哈希缩的不会很短
 
@@ -48,7 +63,7 @@ func Shorten(RedisCli *redis.Client, url string, expireTime int64) string {
 	//time.Second*time.Duration(expireTime)将int64类型的expireTime转化为时间段并转成以秒为单位
 	if err != nil {
 		Logger.Println("短链绑定长链失败,err:", err.Error())
-		return ""
+		return "", err
 	}
-	return "http://127.0.0.1/" + sid
+	return "http://127.0.0.1/" + sid, nil
 }

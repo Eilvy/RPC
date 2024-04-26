@@ -12,7 +12,7 @@ import (
 )
 
 func CreateUser(c *gin.Context) {
-	var user utils.User
+	var user utils.Users
 	var test utils.User
 
 	err := c.ShouldBind(&user)
@@ -29,8 +29,7 @@ func CreateUser(c *gin.Context) {
 	result := utils.DB.Where("username=?", user.Username).First(&test)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			c.JSON(200, gin.H{"msg": "数据库中查无此人，请重新输入"})
-			return
+			c.Next()
 		} else {
 			fmt.Println("查询出错，err:", result.Error.Error())
 			return
@@ -64,8 +63,8 @@ func CreateUser(c *gin.Context) {
 func GetToken(c *gin.Context) {
 	//var Password string
 	//var test string
-	username := c.Query("username")
-	password := c.Query("password")
+	username := c.PostForm("username")
+	password := c.PostForm("password")
 	//从数据库中查找此人是否存在
 	//err := utils.DB.QueryRow("select username from users where (username=?) and password=?", username, password).Scan(&test)
 	result := utils.DB.Where("username=?", username).First(&utils.Test)
@@ -134,6 +133,7 @@ func GetToken(c *gin.Context) {
 		utils.Failed(c)
 		return
 	}
+	//c.Header("Authorization", "Bearer "+signedToken)
 	c.Request.Header.Set("Authorization", "Bearer "+signedToken) //设置请求头（无法在postman里查询到）
 	fmt.Println(c.Request.Header.Get("Authorization"))
 	fmt.Printf("登录用户为：%s\n", username)
@@ -190,7 +190,7 @@ func RefreshToken(c *gin.Context) {
 
 func AddLongURL(c *gin.Context) {
 	longURL := c.PostForm("longURL")
-	username := c.PostForm("username")
+	username := c.MustGet("username").(string)
 	exists, err := utils.Redis.Exists(context.Background(), username).Result()
 	if err != nil {
 		utils.Logger.Println("读取redis失败,err:", err.Error())

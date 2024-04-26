@@ -24,6 +24,10 @@ func (s *ItemServiceImpl) GetItem(ctx context.Context, req *item.GetItemReq) (re
 	resp.Item = item.NewItem()
 	resp.Item.Title = "Kitex"
 	resp.Item.Description = "Kitex is an excellent framework!"
-	resp.ShortURL = utils.Shorten(redisCli, req.LongURL, 100)
+	resp.ShortURL, err = utils.Shorten(redisCli, req.LongURL, 100)
+	if err != nil {
+		utils.Logger.Println("转换短链错误,err:", err.Error())
+		return
+	}
 	return
 }

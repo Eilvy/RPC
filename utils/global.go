@@ -30,13 +30,13 @@ type MyClaims struct {
 	jwt.StandardClaims
 }
 
-//	type Users struct {
-//		Username string `form:"username"`
-//		Password string `form:"password"`
-//		Prise    int    `form:"prise"`
-//		LongURL  string `form:"longUrl"`
-//		ShortURL string `form:"shortUrl"`
-//	}
+type Users struct {
+	Username string `form:"username"`
+	Password string `form:"password"`
+	Prise    int    `form:"prise"`
+	LongURL  string `form:"longUrl"`
+	ShortURL string `form:"shortUrl"`
+}
 type User struct {
 	Id       uint   `gorm:"primaryKey;autoIncrement"` //自增的主键ID
 	Username string `gorm:"type:char;size:100"`
@@ -47,6 +47,6 @@ type User struct {
 }
 
 type Shortage interface {
-	Shorten(url string, expireTime int64) (string, error) //长链接转短链
-	unShorten(sid string) (string, error)                 //短链返回成长链
+	Shorten(RedisCli *redis.Client, url string, expireTime int64) (string, error) //长链接转短链
+	unShorten(sid string) (string, error)                                         //短链返回成长链
 }
